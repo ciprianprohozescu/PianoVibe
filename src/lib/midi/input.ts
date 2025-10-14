@@ -15,10 +15,10 @@ export function bindInput(inputId: string, onNote: MidiNoteHandler) {
     if (!input) throw new Error("MIDI input not found");
     const noteOn = (e: NoteMessageEvent) => onNote({ midi: e.note.number, on: true, velocity: e.note.attack, timestamp: e.timestamp });
     const noteOff = (e: NoteMessageEvent) => onNote({ midi: e.note.number, on: false, timestamp: e.timestamp });
-    input.addListener("noteon", "all", noteOn);
-    input.addListener("noteoff", "all", noteOff);
+    input.addListener("noteon", noteOn);
+    input.addListener("noteoff", noteOff);
     return () => {
-        input.removeListener("noteon", "all", noteOn);
-        input.removeListener("noteoff", "all", noteOff);
+        input.removeListener("noteon", noteOn);
+        input.removeListener("noteoff", noteOff);
     };
 }

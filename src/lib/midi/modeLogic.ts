@@ -3,15 +3,13 @@ import * as Tone from "tone";
 import type { Lesson, NoteEvent } from "../utils/types";
 import { playNote } from "../audio/synth";
 
-const HIT_TOL_SEC = 0.12;
-
 export function schedulePlay(lesson: Lesson) {
     // Clear old events
     Tone.Transport.cancel(0);
     // Schedule each note
     for (const n of lesson.notes) {
         Tone.Transport.schedule((time) => {
-            playNote(n.pitch, n.end - n.start, n.velocity, time);
+            playNote(n.pitch, n.end - n.start, n.velocity, time.toString());
         }, n.start);
     }
 }

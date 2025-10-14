@@ -4,7 +4,7 @@ import * as PIXI from "pixi.js";
 import useLessonStore from "../../store/useLessonStore";
 import * as Tone from "tone";
 
-const KEY_MIN = 21, KEY_MAX = 108;
+const KEY_MIN = 21;
 const LANE_WIDTH = 16;
 const PX_PER_SEC = 180;   // visual speed
 
@@ -35,13 +35,14 @@ export default function PianoRoll() {
         }
 
         const hitLineY = app.renderer.height - 140; // where keys are
-        const ticker = app.ticker.add(() => {
+        const tickerCallback = () => {
             const t = Tone.Transport.seconds;
             stage.y = hitLineY + (t * PX_PER_SEC);
-        });
+        };
+        app.ticker.add(tickerCallback);
 
         return () => {
-            app.ticker.remove(ticker);
+            app.ticker.remove(tickerCallback);
             app.destroy(true);
         };
     }, [lesson]);

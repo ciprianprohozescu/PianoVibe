@@ -20,10 +20,10 @@ export default function MidiInputPicker() {
 
     const onSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
         const id = e.target.value;
-        const unbind = bindInput(id, ({ midi, on, velocity }) => {
+        bindInput(id, ({ midi, on, velocity }) => {
             setIncomingNote({ midi, on, velocity });
         });
-        // optional: store unbind for cleanup
+        // TODO: store unbind for cleanup when component unmounts or device changes
     };
 
     return (

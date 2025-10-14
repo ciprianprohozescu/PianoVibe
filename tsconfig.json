@@ -11,8 +11,8 @@
     "moduleResolution": "Bundler",
     "jsx": "react-jsx",
     "strict": true,
-    "skipLibCheck": false,
+    "skipLibCheck": true,
     "noEmit": true,
-    "types": []
-  }
+    "types": ["vite/client", "webmidi"]
+  },
 }

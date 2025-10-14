@@ -1,5 +1,5 @@
 // global store
-import create from "zustand";
+import { create } from "zustand";
 import type { Lesson } from "../lib/utils/types";
 
 type Mode = "LEARN" | "PLAY";
