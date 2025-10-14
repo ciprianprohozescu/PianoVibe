@@ -1,0 +1,1 @@
+// falling bars view (PixiJS mounted here)
