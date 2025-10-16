@@ -13,6 +13,7 @@ Web app that turns any uploaded MIDI file into an interactive piano lesson with 
 - webmidi for device input
 - Zustand for state
 - PWA + future Capacitor wrap
+- Tailwind CSS
 
 ## File layout (contracts)
 - `src/utils/types.ts` — canonical `NoteEvent`, `Lesson`
@@ -23,6 +24,5 @@ Web app that turns any uploaded MIDI file into an interactive piano lesson with 
 
 ## Non-negotiables
 - Don’t rename `NoteEvent`/`Lesson`.
-- No new deps unless explicitly requested.
 - Keep PixiJS (no SVG/Three switch).
 - Keep Tone.Transport as the timing source.
