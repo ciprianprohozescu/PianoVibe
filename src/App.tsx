@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { parseMidi } from './midi/parseMidi'
 import type {Song} from './types'
+import { Transport } from './transport'
+import PianoRollCanvas from './render/PianoRollCanvas'
 
 
 type Mode = 'learn' | 'play'
@@ -11,6 +13,10 @@ type MidiInputInfo = {
 }
 
 export default function App() {
+    const transportRef = React.useRef<Transport | null>(null)
+    if (!transportRef.current) transportRef.current = new Transport()
+    const transport = transportRef.current
+
     const [midiSupported, setMidiSupported] = useState<boolean | null>(null)
     const [midiAccess, setMidiAccess] = useState<WebMidi.MIDIAccess | null>(null)
     const [inputs, setInputs] = useState<MidiInputInfo[]>([])
@@ -18,6 +24,9 @@ export default function App() {
     const [mode, setMode] = useState<Mode>('learn')
     const [file, setFile] = useState<File | null>(null)
     const [song, setSong] = useState<Song | null>(null)
+    const [isPlaying, setIsPlaying] = useState(false)
+    const [tempoPct, setTempoPct] = useState(100)
+
 
     // Feature detection + request permission
     useEffect(() => {
@@ -83,39 +92,24 @@ export default function App() {
             alert('Choose a MIDI file first')
             return
         }
-        const buf = await file.arrayBuffer()
-        let parsed: Song
-        try {
-            parsed = parseMidi(buf)
-        } catch (e) {
-            console.error(e)
-            alert('Failed to parse MIDI: ' + (e as Error).message)
-            return
+
+        // Parse only once per file selection
+        if (!song) {
+            let parsed: Song
+            try {
+                const buf = await file.arrayBuffer()
+                parsed = parseMidi(buf)
+            } catch (e) {
+                console.error(e)
+                alert('Failed to parse MIDI: ' + (e as Error).message)
+                return
+            }
+            setSong(parsed)
         }
-        setSong(parsed)
 
-        // Build a tiny summary
-        const totalNotes = parsed.tracks.reduce((acc, tr) => acc + tr.events.length, 0)
-        const secs = (parsed.durationMs / 1000).toFixed(2)
-        const tempoList = parsed.tempoMap.map(t => `${t.bpm.toFixed(1)} BPM @ tick ${t.atTick}`).join(', ')
-
-        console.log('Parsed song:', parsed)
-        console.table(
-            parsed.tracks.map((t, idx) => ({
-                track: idx,
-                name: t.name ?? '(unnamed)',
-                notes: t.events.length,
-            }))
-        )
-
-        alert([
-            `MIDI parsed successfully ✅`,
-            `Format: ${parsed.format} | Tracks: ${parsed.tracks.length}`,
-            `PPQ: ${parsed.ppq}`,
-            `Duration: ${secs}s`,
-            `Total notes: ${totalNotes}`,
-            `Tempo changes: ${parsed.tempoMap.length} (${tempoList})`,
-        ].join('\n'))
+        // Toggle transport
+        transport.toggle()
+        setIsPlaying(transport.isRunning)
     }
 
     return (
@@ -197,43 +191,51 @@ export default function App() {
                     </div>
                 </section>
 
-                {/* Play button (stub) */}
                 <section style={styles.section}>
-                    <button
-                        style={styles.button}
-                        onClick={onClickPlay}
-                        disabled={!file}
-                        title={!file ? 'Choose a MIDI file first' : 'Ready'}
-                    >
-                        Play
-                    </button>
+                    <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+                        <button
+                            style={styles.button}
+                            onClick={onClickPlay}
+                            disabled={!file}
+                            title={!file ? 'Choose a MIDI file first' : 'Ready'}
+                        >
+                            {isPlaying ? 'Pause' : 'Play'}
+                        </button>
+
+                        <button
+                            style={styles.button}
+                            onClick={() => { transport.seek(0); setIsPlaying(transport.isRunning) }}
+                            disabled={!song}
+                            title="Seek to start"
+                        >
+                            ⏮︎
+                        </button>
+
+                        <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            Tempo {tempoPct}%
+                            <input
+                                type="range"
+                                min={50}
+                                max={150}
+                                value={tempoPct}
+                                onChange={(e) => {
+                                    const v = Number(e.target.value)
+                                    setTempoPct(v)
+                                    transport.setTempoMultiplier(v / 100)
+                                }}
+                            />
+                        </label>
+                    </div>
                 </section>
 
                 {song && (
                     <section style={styles.section}>
-                        <div style={{
-                            padding: 12,
-                            borderRadius: 12,
-                            border: '1px solid rgba(255,255,255,0.2)',
-                            background: 'rgba(255,255,255,0.05)'
-                        }}>
-                            <div style={{ fontWeight: 600, marginBottom: 8 }}>Parsed summary</div>
-                            <div style={{ opacity: 0.85, fontSize: 14 }}>
-                                <div>Format: {song.format} | Tracks: {song.tracks.length} | PPQ: {song.ppq}</div>
-                                <div>Duration: {(song.durationMs/1000).toFixed(2)}s</div>
-                                <div>Tempo changes: {song.tempoMap.length}</div>
-                                <div>Total notes: {song.tracks.reduce((a,t)=>a+t.events.length,0)}</div>
-                            </div>
+                        <PianoRollCanvas song={song} transport={transport} windowMs={6000} />
+                        <div style={{ opacity: 0.7, fontSize: 12, marginTop: 6 }}>
+                            Showing next 6 seconds. Notes fall into the keyboard lane.
                         </div>
                     </section>
                 )}
-
-
-                <footer style={styles.footer}>
-                    <small>
-                        This is a minimal UI stub. Next steps: parse MIDI, clock/transport, canvas rendering, and grading.
-                    </small>
-                </footer>
             </div>
         </div>
     )
