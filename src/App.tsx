@@ -3,6 +3,8 @@ import { parseMidi } from './midi/parseMidi'
 import type {Song} from './types'
 import { Transport } from './transport'
 import PianoRollCanvas from './render/PianoRollCanvas'
+import { SimpleSynth } from './audio/SimpleSynth'
+import { SongScheduler } from './audio/SongScheduler'
 
 
 type Mode = 'learn' | 'play'
@@ -16,6 +18,12 @@ export default function App() {
     const transportRef = React.useRef<Transport | null>(null)
     if (!transportRef.current) transportRef.current = new Transport()
     const transport = transportRef.current
+    const synthRef = React.useRef<SimpleSynth | null>(null)
+    const schedulerRef = React.useRef<SongScheduler | null>(null)
+    if (!synthRef.current) synthRef.current = new SimpleSynth(transport.audioContext)
+    if (!schedulerRef.current) schedulerRef.current = new SongScheduler(transport, synthRef.current)
+    const synth = synthRef.current
+    const scheduler = schedulerRef.current
 
     const [midiSupported, setMidiSupported] = useState<boolean | null>(null)
     const [midiAccess, setMidiAccess] = useState<WebMidi.MIDIAccess | null>(null)
@@ -105,11 +113,18 @@ export default function App() {
                 return
             }
             setSong(parsed)
+            scheduler.setSong(parsed)
         }
 
-        // Toggle transport
-        transport.toggle()
+        // Toggle transport + start/stop scheduler
+        await transport.toggle()
         setIsPlaying(transport.isRunning)
+        if (transport.isRunning) {
+            scheduler.start()
+        } else {
+            // keep scheduled notes, but stop sounding ones
+            synth.allNotesOff()
+        }
     }
 
     return (
@@ -204,7 +219,7 @@ export default function App() {
 
                         <button
                             style={styles.button}
-                            onClick={() => { transport.seek(0); setIsPlaying(transport.isRunning) }}
+                            onClick={() => { transport.seek(0); scheduler.reset(); setIsPlaying(transport.isRunning) }}
                             disabled={!song}
                             title="Seek to start"
                         >

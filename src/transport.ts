@@ -15,6 +15,7 @@ export class Transport {
 
     get isRunning() { return this.running }
     get tempoMultiplier() { return this.tempoMul }
+    get audioContext() { return this.ctx }
 
     // Current song time in ms (derived from AudioContext time + offsets)
     currentMs(): number {
