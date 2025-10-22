@@ -24,6 +24,7 @@ export default function App() {
     if (!schedulerRef.current) schedulerRef.current = new SongScheduler(transport, synthRef.current)
     const synth = synthRef.current
     const scheduler = schedulerRef.current
+    const currentInputRef = React.useRef<WebMidi.MIDIInput | null>(null)
 
     const [midiSupported, setMidiSupported] = useState<boolean | null>(null)
     const [midiAccess, setMidiAccess] = useState<WebMidi.MIDIAccess | null>(null)
@@ -34,6 +35,7 @@ export default function App() {
     const [song, setSong] = useState<Song | null>(null)
     const [isPlaying, setIsPlaying] = useState(false)
     const [tempoPct, setTempoPct] = useState(100)
+    const [pressed, setPressed] = useState<Set<number>>(new Set())
 
 
     // Feature detection + request permission
@@ -124,8 +126,51 @@ export default function App() {
         } else {
             // keep scheduled notes, but stop sounding ones
             synth.allNotesOff()
+            setPressed(new Set())
         }
     }
+
+    function bindSelectedMidiInput(access: WebMidi.MIDIAccess, inputId: string) {
+        // Clear old listener
+        if (currentInputRef.current) {
+            currentInputRef.current.onmidimessage = null as any
+            currentInputRef.current = null
+        }
+        if (!inputId) return
+
+        const input = Array.from(access.inputs.values()).find(i => i.id === inputId) || null
+        if (!input) return
+
+        currentInputRef.current = input
+        input.onmidimessage = (e: WebMidi.MIDIMessageEvent) => {
+            const [status, data1, data2] = e.data
+            const hi = status & 0xF0
+            // Note On
+            if (hi === 0x90 && data2 > 0) {
+                const pitch = data1
+                setPressed(prev => {
+                    const next = new Set(prev)
+                    next.add(pitch)
+                    return next
+                })
+            } else if (hi === 0x80 || (hi === 0x90 && data2 === 0)) {
+                // Note Off (or Note On with velocity 0)
+                const pitch = data1
+                setPressed(prev => {
+                    if (!prev.has(pitch)) return prev
+                    const next = new Set(prev)
+                    next.delete(pitch)
+                    return next
+                })
+            }
+            // (Optional) sustain pedal, etc., can be handled later if needed
+        }
+    }
+
+    useEffect(() => {
+        if (!midiAccess) return
+        bindSelectedMidiInput(midiAccess, selectedInputId)
+    }, [midiAccess, selectedInputId])
 
     return (
         <div style={styles.page}>
@@ -219,7 +264,7 @@ export default function App() {
 
                         <button
                             style={styles.button}
-                            onClick={() => { transport.seek(0); scheduler.reset(); setIsPlaying(transport.isRunning) }}
+                            onClick={() => { synth.allNotesOff(); setPressed(new Set()); transport.seek(0); scheduler.reset(); setIsPlaying(transport.isRunning) }}
                             disabled={!song}
                             title="Seek to start"
                         >
@@ -245,9 +290,9 @@ export default function App() {
 
                 {song && (
                     <section style={styles.section}>
-                        <PianoRollCanvas song={song} transport={transport} windowMs={6000} />
+                        <PianoRollCanvas song={song} transport={transport} windowMs={6000} pressed={pressed} />
                         <div style={{ opacity: 0.7, fontSize: 12, marginTop: 6 }}>
-                            Showing next 6 seconds. Notes fall into the keyboard lane.
+                            Showing next 6 seconds. Notes fall into the keyboard lane. Physical MIDI keys highlight below.
                         </div>
                     </section>
                 )}

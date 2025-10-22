@@ -10,9 +10,10 @@ type Props = {
     song: Song
     transport: Transport
     windowMs?: number          // how much future time is visible (default 6000ms)
+    pressed?: Set<number>
 }
 
-export default function PianoRollCanvas({ song, transport, windowMs = 6000 }: Props) {
+export default function PianoRollCanvas({ song, transport, windowMs = 6000, pressed }: Props) {
     const canvasRef = useRef<HTMLCanvasElement | null>(null)
     const [size, setSize] = useState<{ w: number; h: number }>({ w: 800, h: 500 })
     const keyboardLane = 80
@@ -130,7 +131,7 @@ export default function PianoRollCanvas({ song, transport, windowMs = 6000 }: Pr
             drawLine(ctx, 0, playH, W, playH, 'rgba(255,255,255,0.3)')
 
             // Keyboard lane
-            drawKeyboard(ctx, 0, playH, W, keyboardLane * PR, minPitch, maxPitch)
+            drawKeyboard(ctx, 0, playH, W, keyboardLane * PR, minPitch, maxPitch, pressed)
 
             // Continue animating if transport is running
             raf = requestAnimationFrame(draw)
@@ -166,21 +167,55 @@ function drawLine(ctx: CanvasRenderingContext2D, x1: number, y1: number, x2: num
 function drawKeyboard(
     ctx: CanvasRenderingContext2D,
     x: number, y: number, w: number, h: number,
-    minPitch: number, maxPitch: number
+    minPitch: number, maxPitch: number,
+    pressed?: Set<number>
 ) {
-    // Very simple: draw white key bands; we’re not mapping exact key widths, just a visual.
     const pitchCount = maxPitch - minPitch + 1
     const pxPerPitch = w / pitchCount
-    // White-ish background
+
+    // Base background
     fillRect(ctx, x, y, w, h, '#111827')
 
+    const isBlack = (p: number) => [1, 3, 6, 8, 10].includes(p % 12)
+
     for (let p = minPitch; p <= maxPitch; p++) {
-        const isC = (p % 12) === 0
         const xx = Math.floor(x + (p - minPitch) * pxPerPitch)
-        // Light band for white keys
-        const isBlack = [1, 3, 6, 8, 10].includes(p % 12)
-        if (!isBlack) fillRect(ctx, xx, y, Math.ceil(pxPerPitch), h, 'rgba(255,255,255,0.06)')
-        // Thicker line at C boundaries
-        if (isC) drawLine(ctx, xx, y, xx, y + h, 'rgba(255,255,255,0.18)')
+        const ww = Math.ceil(pxPerPitch)
+
+        const black = isBlack(p)
+        const pressedHere = pressed?.has(p)
+
+        if (!black) {
+            // White key background
+            fillRect(ctx, xx, y, ww, h, 'rgba(255,255,255,0.06)')
+            if (pressedHere) {
+                // Brighten + subtle glow
+                fillRect(ctx, xx, y, ww, h, 'rgba(236, 72, 153, 0.45)') // pinkish layer
+                fillRect(ctx, xx, y, ww, 6, 'rgba(255,255,255,0.35)')   // spec highlight
+            }
+        }
+    }
+
+    // Black keys drawn on top
+    for (let p = minPitch; p <= maxPitch; p++) {
+        const black = [1, 3, 6, 8, 10].includes(p % 12)
+        if (!black) continue
+        const xx = Math.floor(x + (p - minPitch) * pxPerPitch)
+        const ww = Math.ceil(pxPerPitch * 0.9)
+        const hh = Math.floor(h * 0.62)
+        const pressedHere = pressed?.has(p)
+
+        fillRect(ctx, xx, y, ww, hh, pressedHere ? 'rgba(236, 72, 153, 0.85)' : 'rgba(0,0,0,0.7)')
+        // Small bevel
+        drawLine(ctx, xx, y, xx + ww, y, 'rgba(255,255,255,0.12)')
+    }
+
+    // C boundaries for orientation
+    for (let p = minPitch; p <= maxPitch; p++) {
+        if ((p % 12) === 0) {
+            const xx = Math.floor(x + (p - minPitch) * pxPerPitch)
+            drawLine(ctx, xx, y, xx, y + h, 'rgba(255,255,255,0.18)')
+        }
     }
 }
+
