@@ -1,73 +1,79 @@
-# React + TypeScript + Vite
+# PianoVibe - Project Summary
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+## Purpose
+PianoVibe (also called "Piano Learner" in the UI) is a web application designed to help users learn to play piano by providing an interactive MIDI playback and visualization system. The application allows users to upload MIDI files, connect their MIDI keyboards, and practice playing along with the music in different learning modes.
 
-Currently, two official plugins are available:
+## Functionality
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+### Core Features
+1. **MIDI File Upload**: Users can upload standard MIDI files (.mid/.midi) for playback and learning.
+2. **MIDI Device Integration**: The app detects and connects to MIDI input devices (keyboards) using the Web MIDI API.
+3. **Learning Modes**:
+    - **Learn Mode**: Waits for the user to play the correct notes before advancing
+    - **Play Mode**: Free-running playback regardless of user input
+4. **Piano Roll Visualization**: A visual representation of upcoming notes that "fall" toward a keyboard at the bottom of the screen.
+5. **Playback Controls**: Play/pause, seek to start, and tempo adjustment (50% to 150%).
 
-## React Compiler
+### User Experience
+- The interface is designed with a dark theme and clean, modern styling.
+- The piano roll provides a clear visual guide for which notes to play and when.
+- The application automatically detects connected MIDI devices and handles device connections/disconnections.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Architecture
 
-## Expanding the ESLint configuration
+### Component Structure
+1. **App Component** (`App.tsx`): The main application component that manages state and orchestrates the other components.
+2. **Transport System** (`transport.ts`): Provides precise timing using the Web Audio API's AudioContext.
+3. **Audio Engine**:
+    - **SimpleSynth** (`SimpleSynth.ts`): A basic polyphonic synthesizer using Web Audio API.
+    - **SongScheduler** (`SongScheduler.ts`): Schedules note events for playback with look-ahead buffering.
+4. **MIDI Processing**:
+    - **MIDI Parser** (`parseMidi.ts`): Parses Standard MIDI Files into a structured format.
+5. **Visualization**:
+    - **PianoRollCanvas** (`PianoRollCanvas.tsx`): Renders the piano roll visualization using HTML Canvas.
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+### Data Flow
+1. User uploads a MIDI file
+2. The file is parsed into a structured `Song` object
+3. When playback starts:
+    - The Transport provides timing information
+    - The SongScheduler schedules notes to play at the appropriate times
+    - The SimpleSynth generates audio for the scheduled notes
+    - The PianoRollCanvas visualizes upcoming notes
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+## Tech Stack
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+### Core Technologies
+- **Framework**: React (v19)
+- **Language**: TypeScript
+- **Build Tool**: Vite
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+### Web APIs
+- **Web Audio API**: Used for audio synthesis and precise timing
+- **Web MIDI API**: Used for MIDI device integration
+- **Canvas API**: Used for piano roll visualization
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+### Development Tools
+- ESLint for code quality
+- TypeScript for type safety
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## Implementation Details
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+### Audio System
+- Uses a simple synthesizer with triangle wave oscillators and ADSR envelopes
+- Implements look-ahead scheduling for precise timing
+- Supports tempo changes and seeking
+
+### MIDI Processing
+- Parses Standard MIDI File format (SMF)
+- Handles note on/off events, tempo changes, and track names
+- Converts between tick-based timing and real-time (ms) timing
+
+### Visualization
+- Vertical time representation (future downward)
+- Horizontal pitch representation
+- Responsive design that adapts to container size
+- Automatic calculation of visible pitch range
+
+## Current Status
+The application is described as a "prototype" in the UI, suggesting it's in early development. The minimal dependencies in package.json and the comment in SimpleSynth.ts about it being "not realistic piano — just clean tones to prove timing & scheduling" indicate that this is a functional proof of concept that could be expanded with more features and refinements.
