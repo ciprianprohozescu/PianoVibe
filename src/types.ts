@@ -1,4 +1,5 @@
 export type NoteEvent = {
+    id: number;
     pitch: number;          // MIDI note number 0–127
     startTick: number;
     endTick: number;

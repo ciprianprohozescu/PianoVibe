@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react'
 import type {Song} from '../types'
 import { Transport } from '../transport'
+import type {NoteStateMap} from "../grade/Grader.ts";
 
 // Simple, readable piano-roll renderer.
 // Time = vertical (future downward). Pitch = horizontal.
@@ -11,9 +12,10 @@ type Props = {
     transport: Transport
     windowMs?: number          // how much future time is visible (default 6000ms)
     pressed?: Set<number>
+    noteStates?: NoteStateMap
 }
 
-export default function PianoRollCanvas({ song, transport, windowMs = 6000, pressed }: Props) {
+export default function PianoRollCanvas({ song, transport, windowMs = 6000, pressed, noteStates }: Props) {
     const canvasRef = useRef<HTMLCanvasElement | null>(null)
     const [size, setSize] = useState<{ w: number; h: number }>({ w: 800, h: 500 })
     const keyboardLane = 80
@@ -116,14 +118,13 @@ export default function PianoRollCanvas({ song, transport, windowMs = 6000, pres
                     const y = Math.max(0, Math.min(yTop, yBottom)) // safe ordering
                     const h = Math.max(2 * PR, Math.min(playH - y, Math.abs(yBottom - yTop)))
 
-                    fillRect(
-                        ctx,
-                        x + 1,
-                        y + 1,
-                        Math.max(2, pxPerPitch - 2),
-                        h - 2,
-                        'rgba(99, 102, 241, 0.9)' // indigo
-                    )
+                    const state = noteStates?.get(n.id) ?? 0
+                    const color =
+                        state === 1 ? 'rgba(34, 197, 94, 0.95)'  // green: hit
+                            : state === 2 ? 'rgba(239, 68, 68, 0.95)'  // red: miss
+                                :              'rgba(99, 102, 241, 0.9)'   // indigo: pending
+
+                    fillRect(ctx, x + 1, y + 1, Math.max(2, pxPerPitch - 2), h - 2, color)
                 }
             }
 

@@ -5,6 +5,7 @@ import { Transport } from './transport'
 import PianoRollCanvas from './render/PianoRollCanvas'
 import { SimpleSynth } from './audio/SimpleSynth'
 import { SongScheduler } from './audio/SongScheduler'
+import { Grader, type NoteStateMap } from './grade/Grader'
 
 
 type Mode = 'learn' | 'play'
@@ -36,8 +37,12 @@ export default function App() {
     const [isPlaying, setIsPlaying] = useState(false)
     const [tempoPct, setTempoPct] = useState(100)
     const [pressed, setPressed] = useState<Set<number>>(new Set())
+    const [noteStates, setNoteStates] = React.useState<NoteStateMap>(new Map())
 
-
+    const graderRef = React.useRef<Grader | null>(null)
+    if (!graderRef.current) graderRef.current = new Grader(transport, setNoteStates)
+    const grader = graderRef.current
+    
     // Feature detection + request permission
     useEffect(() => {
         const hasWebMIDI = !!navigator.requestMIDIAccess
@@ -116,6 +121,7 @@ export default function App() {
             }
             setSong(parsed)
             scheduler.setSong(parsed)
+            grader.setSong(parsed)
         }
 
         // Toggle transport + start/stop scheduler
@@ -123,6 +129,7 @@ export default function App() {
         setIsPlaying(transport.isRunning)
         if (transport.isRunning) {
             scheduler.start()
+            grader.start()
         } else {
             // keep scheduled notes, but stop sounding ones
             synth.allNotesOff()
@@ -153,6 +160,8 @@ export default function App() {
                     next.add(pitch)
                     return next
                 })
+                const timeMs = transport.currentMs()
+                grader.addPress(pitch, timeMs)
             } else if (hi === 0x80 || (hi === 0x90 && data2 === 0)) {
                 // Note Off (or Note On with velocity 0)
                 const pitch = data1
@@ -264,7 +273,7 @@ export default function App() {
 
                         <button
                             style={styles.button}
-                            onClick={() => { synth.allNotesOff(); setPressed(new Set()); transport.seek(0); scheduler.reset(); setIsPlaying(transport.isRunning) }}
+                            onClick={() => { synth.allNotesOff(); setPressed(new Set()); transport.seek(0); scheduler.reset(); grader.reset(); setIsPlaying(transport.isRunning) }}
                             disabled={!song}
                             title="Seek to start"
                         >
@@ -290,7 +299,7 @@ export default function App() {
 
                 {song && (
                     <section style={styles.section}>
-                        <PianoRollCanvas song={song} transport={transport} windowMs={6000} pressed={pressed} />
+                        <PianoRollCanvas song={song} transport={transport} windowMs={6000} pressed={pressed} noteStates={noteStates} />
                         <div style={{ opacity: 0.7, fontSize: 12, marginTop: 6 }}>
                             Showing next 6 seconds. Notes fall into the keyboard lane. Physical MIDI keys highlight below.
                         </div>

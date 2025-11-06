@@ -46,6 +46,7 @@ export function parseMidi(buf: ArrayBuffer): Song {
     const tracks: Track[] = []
     const tempoMap: TempoChange[] = [{ atTick: 0, bpm: 120 }] // default 120 BPM
     let maxEndTick = 0
+    let nextId = 1
 
     for (let t = 0; t < ntrks; t++) {
         const id = readStr(4); if (id !== 'MTrk') throw new Error('Missing MTrk')
@@ -113,6 +114,7 @@ export function parseMidi(buf: ArrayBuffer): Song {
                 if (hi === 0x90 && vel > 0) {
                     // Note On
                     const ev: NoteEvent = {
+                        id: nextId++,
                         pitch, startTick: tick, endTick: tick, channel: ch, velocity: vel,
                     }
                     if (!openNotes.has(key)) openNotes.set(key, [])
