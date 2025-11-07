@@ -6,6 +6,7 @@ import PianoRollCanvas from './render/PianoRollCanvas'
 import { SimpleSynth } from './audio/SimpleSynth'
 import { SongScheduler } from './audio/SongScheduler'
 import { Grader, type NoteStateMap } from './grade/Grader'
+import { LearnGate } from './learn/LearnGate'
 
 
 type Mode = 'learn' | 'play'
@@ -19,30 +20,35 @@ export default function App() {
     const transportRef = React.useRef<Transport | null>(null)
     if (!transportRef.current) transportRef.current = new Transport()
     const transport = transportRef.current
+
     const synthRef = React.useRef<SimpleSynth | null>(null)
     const schedulerRef = React.useRef<SongScheduler | null>(null)
     if (!synthRef.current) synthRef.current = new SimpleSynth(transport.audioContext)
     if (!schedulerRef.current) schedulerRef.current = new SongScheduler(transport, synthRef.current)
     const synth = synthRef.current
     const scheduler = schedulerRef.current
-    const currentInputRef = React.useRef<WebMidi.MIDIInput | null>(null)
 
+    const currentInputRef = React.useRef<WebMidi.MIDIInput | null>(null)
     const [midiSupported, setMidiSupported] = useState<boolean | null>(null)
     const [midiAccess, setMidiAccess] = useState<WebMidi.MIDIAccess | null>(null)
     const [inputs, setInputs] = useState<MidiInputInfo[]>([])
     const [selectedInputId, setSelectedInputId] = useState<string>('')
+
     const [mode, setMode] = useState<Mode>('learn')
     const [file, setFile] = useState<File | null>(null)
     const [song, setSong] = useState<Song | null>(null)
     const [isPlaying, setIsPlaying] = useState(false)
     const [tempoPct, setTempoPct] = useState(100)
+
     const [pressed, setPressed] = useState<Set<number>>(new Set())
     const [noteStates, setNoteStates] = React.useState<NoteStateMap>(new Map())
 
     const graderRef = React.useRef<Grader | null>(null)
     if (!graderRef.current) graderRef.current = new Grader(transport, setNoteStates)
     const grader = graderRef.current
-    
+
+    const learnGateRef = React.useRef<LearnGate | null>(null)
+
     // Feature detection + request permission
     useEffect(() => {
         const hasWebMIDI = !!navigator.requestMIDIAccess
@@ -122,6 +128,11 @@ export default function App() {
             setSong(parsed)
             scheduler.setSong(parsed)
             grader.setSong(parsed)
+
+            if (mode === 'learn') {
+                learnGateRef.current = new LearnGate(transport, parsed)
+                learnGateRef.current.enable()
+            }
         }
 
         // Toggle transport + start/stop scheduler
@@ -180,6 +191,21 @@ export default function App() {
         if (!midiAccess) return
         bindSelectedMidiInput(midiAccess, selectedInputId)
     }, [midiAccess, selectedInputId])
+
+    useEffect(() => {
+        if (!song) return
+        if (mode === 'learn') {
+            learnGateRef.current = new LearnGate(transport, song)
+            learnGateRef.current.enable()
+        } else {
+            learnGateRef.current?.disable()
+            learnGateRef.current = null
+        }
+    }, [mode, song, transport])
+
+    useEffect(() => {
+        learnGateRef.current?.onStatesUpdate(noteStates)
+    }, [noteStates])
 
     return (
         <div style={styles.page}>
