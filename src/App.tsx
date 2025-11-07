@@ -125,14 +125,14 @@ export default function App() {
                 alert('Failed to parse MIDI: ' + (e as Error).message)
                 return
             }
-            setSong(parsed)
-            scheduler.setSong(parsed)
-            grader.setSong(parsed)
 
             if (mode === 'learn') {
                 learnGateRef.current = new LearnGate(transport, parsed)
                 learnGateRef.current.enable()
             }
+            scheduler.setSong(parsed)
+            grader.setSong(parsed)
+            setSong(parsed)
         }
 
         // Toggle transport + start/stop scheduler
@@ -144,6 +144,7 @@ export default function App() {
         } else {
             // keep scheduled notes, but stop sounding ones
             synth.allNotesOff()
+            grader.stop()
             setPressed(new Set())
         }
     }
@@ -299,7 +300,7 @@ export default function App() {
 
                         <button
                             style={styles.button}
-                            onClick={() => { synth.allNotesOff(); setPressed(new Set()); transport.seek(0); scheduler.reset(); grader.reset(); setIsPlaying(transport.isRunning) }}
+                            onClick={() => { synth.allNotesOff(); setPressed(new Set()); transport.seek(0); scheduler.reset(); grader.reset(); learnGateRef.current?.resetToStart(); setIsPlaying(transport.isRunning) }}
                             disabled={!song}
                             title="Seek to start"
                         >
