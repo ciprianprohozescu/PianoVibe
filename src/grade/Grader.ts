@@ -76,14 +76,11 @@ export class Grader {
         for (const tr of this.song.tracks) {
             for (const n of tr.events) {
                 if (n.startMs == null) continue
-                const s = this.states.get(n.id) ?? 0
-                if (s !== 0) continue // already judged
 
-                // Check for HIT: any press with same pitch within ±tolMs of startMs
+                // Check for HIT: any press with same pitch at most tolMs before startMs
                 const dtMin = n.startMs - this.tolMs
-                const dtMax = n.startMs + this.tolMs
                 const hit = this.recentPresses.find(pe =>
-                    pe.pitch === n.pitch && pe.timeMs >= dtMin && pe.timeMs <= dtMax
+                    pe.pitch === n.pitch && pe.timeMs >= dtMin
                 )
                 if (hit) {
                     this.states.set(n.id, 1)

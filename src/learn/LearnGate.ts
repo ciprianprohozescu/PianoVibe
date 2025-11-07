@@ -15,7 +15,7 @@ export class LearnGate {
     constructor(transport: Transport, song: Song) {
         this.transport = transport
         this.song = song
-        this.groups = buildGroups(song, 12) // group notes starting within 12ms into “chords”
+        this.groups = buildGroups(song, 3) // group notes starting within 3ms into “chords”
         this.idx = 0
     }
 
@@ -54,7 +54,7 @@ export class LearnGate {
     }
 }
 
-function buildGroups(song: Song, groupTolMs = 12): NoteGroup[] {
+function buildGroups(song: Song, groupTolMs = 3): NoteGroup[] {
     const all = song.tracks.flatMap(tr => tr.events).filter(n => n.startMs != null)
     all.sort((a, b) => (a.startMs! - b.startMs!))
 
