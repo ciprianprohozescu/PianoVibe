@@ -141,7 +141,7 @@ export default function PianoRollCanvas({ song, transport, windowMs = 6000, pres
         // First static paint, then continuous
         draw()
         return () => cancelAnimationFrame(raf)
-    }, [song, size.w, size.h, minPitch, maxPitch, keyboardLane, windowMs, transport])
+    }, [song, size.w, size.h, minPitch, maxPitch, keyboardLane, windowMs, transport, noteStates, pressed])
 
     return (
         <div style={{ width: '100%', height: '60vh', minHeight: 260, borderRadius: 12, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.15)' }}>
