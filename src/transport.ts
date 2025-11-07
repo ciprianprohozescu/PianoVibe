@@ -59,5 +59,11 @@ export class Transport {
         }
     }
 
-    toggle() { this.isRunning ? this.pause() : this.play() }
+    async toggle() {
+        if (this.running) {
+            this.pause()
+        } else {
+            await this.play()
+        }
+    }
 }
