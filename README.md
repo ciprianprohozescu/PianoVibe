@@ -1,79 +1,95 @@
 # PianoVibe - Project Summary
 
 ## Purpose
-PianoVibe (also called "Piano Learner" in the UI) is a web application designed to help users learn to play piano by providing an interactive MIDI playback and visualization system. The application allows users to upload MIDI files, connect their MIDI keyboards, and practice playing along with the music in different learning modes.
+PianoVibe (labeled "Piano Learner" in the UI) is a web app to practice piano with interactive MIDI playback, live grading, and a readable piano‑roll. Upload a MIDI file, connect a MIDI keyboard, choose a mode, and practice with visual guidance.
 
 ## Functionality
 
 ### Core Features
-1. **MIDI File Upload**: Users can upload standard MIDI files (.mid/.midi) for playback and learning.
-2. **MIDI Device Integration**: The app detects and connects to MIDI input devices (keyboards) using the Web MIDI API.
-3. **Learning Modes**:
-    - **Learn Mode**: Waits for the user to play the correct notes before advancing
-    - **Play Mode**: Free-running playback regardless of user input
-4. **Piano Roll Visualization**: A visual representation of upcoming notes that "fall" toward a keyboard at the bottom of the screen.
-5. **Playback Controls**: Play/pause, seek to start, and tempo adjustment (50% to 150%).
+1. **MIDI File Upload**: Load standard MIDI files (`.mid`/`.midi`) for practice and playback.
+2. **MIDI Device Integration**: Detects and connects to MIDI input devices via the Web MIDI API. Hot‑plugging is handled and the first device is auto‑selected when available.
+3. **Modes**:
+   - **Learn Mode**: Auto‑pauses at each upcoming note/chord and waits until you play the correct notes, then auto‑resumes to the next group.
+   - **Play Mode**: Free‑running playback, unaffected by user input.
+4. **Live Grading**: Incoming key presses are matched to scheduled notes within a small timing window and marked per note as `hit` (green) or `miss` (red).
+5. **Piano Roll Visualization**: Notes “fall” toward a keyboard lane. Current/graded notes are colorized; pressed keys light up on the keyboard.
+6. **Playback Controls**: Play/Pause, Seek‑to‑Start, and Tempo slider (50%–150%).
 
 ### User Experience
-- The interface is designed with a dark theme and clean, modern styling.
-- The piano roll provides a clear visual guide for which notes to play and when.
-- The application automatically detects connected MIDI devices and handles device connections/disconnections.
+- Modern dark theme UI.
+- Clear visual grid (time lines, octave lines) and a bottom keyboard lane with pressed‑key highlighting.
+- Helpful notices for MIDI support/permission.
 
 ## Architecture
 
 ### Component Structure
-1. **App Component** (`App.tsx`): The main application component that manages state and orchestrates the other components.
-2. **Transport System** (`transport.ts`): Provides precise timing using the Web Audio API's AudioContext.
-3. **Audio Engine**:
-    - **SimpleSynth** (`SimpleSynth.ts`): A basic polyphonic synthesizer using Web Audio API.
-    - **SongScheduler** (`SongScheduler.ts`): Schedules note events for playback with look-ahead buffering.
+1. **App** (`src/App.tsx`): Orchestrates transport, audio, scheduling, grading, learn gating, device binding, and the UI.
+2. **Transport** (`src/transport.ts`): Stable timing based on `AudioContext`. Supports play/pause, seek, and a tempo multiplier.
+3. **Audio**:
+   - **SimpleSynth** (`src/audio/SimpleSynth.ts`): Minimal poly synth using Web Audio API oscillators + ADSR envelopes.
+   - **SongScheduler** (`src/audio/SongScheduler.ts`): Look‑ahead scheduler that queues note on/off using `AudioContext` time.
 4. **MIDI Processing**:
-    - **MIDI Parser** (`parseMidi.ts`): Parses Standard MIDI Files into a structured format.
-5. **Visualization**:
-    - **PianoRollCanvas** (`PianoRollCanvas.tsx`): Renders the piano roll visualization using HTML Canvas.
+   - **parseMidi** (`src/midi/parseMidi.ts`): Minimal SMF parser (format 0/1). Handles tempo map, track names, Note On/Off, running status.
+5. **Learning/Feedback**:
+   - **Grader** (`src/grade/Grader.ts`): Matches played notes to scheduled notes and maintains a per‑note state map: `0=pending`, `1=hit`, `2=miss`.
+   - **LearnGate** (`src/learn/LearnGate.ts`): Groups near‑simultaneous notes into chords and auto‑pauses/resumes to gate progress in Learn mode.
+6. **Visualization**:
+   - **PianoRollCanvas** (`src/render/PianoRollCanvas.tsx`): Canvas renderer for the piano roll, graded note coloring, and keyboard lane.
 
 ### Data Flow
-1. User uploads a MIDI file
-2. The file is parsed into a structured `Song` object
-3. When playback starts:
-    - The Transport provides timing information
-    - The SongScheduler schedules notes to play at the appropriate times
-    - The SimpleSynth generates audio for the scheduled notes
-    - The PianoRollCanvas visualizes upcoming notes
+1. User selects a MIDI file.
+2. File is parsed into a structured `Song` object with per‑note `startMs`/`endMs` using the tempo map.
+3. On Play:
+   - `Transport` exposes song time in ms and tempo multiplier.
+   - `SongScheduler` schedules note on/off events ahead of time.
+   - `SimpleSynth` renders audio for scheduled notes.
+   - `Grader` continuously evaluates user key presses against note start times and updates the note state map.
+   - `LearnGate` (in Learn mode) auto‑pauses at the next note/chord until satisfied, then resumes.
+   - `PianoRollCanvas` draws the windowed piano roll with graded colors and pressed‑key highlights.
 
 ## Tech Stack
 
 ### Core Technologies
-- **Framework**: React (v19)
-- **Language**: TypeScript
-- **Build Tool**: Vite
+- **Framework**: React 19 (`react@^19.1.1`)
+- **Language**: TypeScript (~5.9)
+- **Build Tool**: Vite 7
 
 ### Web APIs
-- **Web Audio API**: Used for audio synthesis and precise timing
-- **Web MIDI API**: Used for MIDI device integration
-- **Canvas API**: Used for piano roll visualization
+- **Web Audio API**: Audio synthesis and precise timing.
+- **Web MIDI API**: MIDI input integration.
+- **Canvas 2D API**: Piano roll rendering.
 
 ### Development Tools
-- ESLint for code quality
-- TypeScript for type safety
+- ESLint 9
+- TypeScript ESLint
 
 ## Implementation Details
 
-### Audio System
-- Uses a simple synthesizer with triangle wave oscillators and ADSR envelopes
-- Implements look-ahead scheduling for precise timing
-- Supports tempo changes and seeking
+### Audio & Timing
+- Triangle‑wave poly synth with simple ADSR; master gain control in `SimpleSynth`.
+- Look‑ahead scheduling window (~120ms) with ~25ms ticks for responsive tempo/seek changes.
+- `Transport` tempo multiplier range is clamped internally (0.25×–2×). UI exposes 50%–150%.
 
-### MIDI Processing
-- Parses Standard MIDI File format (SMF)
-- Handles note on/off events, tempo changes, and track names
-- Converts between tick-based timing and real-time (ms) timing
+### MIDI Parsing
+- Minimal SMF support: header, multiple tracks, meta tempo (`0xFF 0x51`), track name (`0xFF 0x03`), Note On/Off, running status.
+- Converts ticks to milliseconds using a tempo map; default tempo 120 BPM until a tempo event is encountered.
+- SMPTE timebase is not supported.
 
 ### Visualization
-- Vertical time representation (future downward)
-- Horizontal pitch representation
-- Responsive design that adapts to container size
-- Automatic calculation of visible pitch range
+- Time = vertical (future downward). Pitch = horizontal.
+- Visible window defaults to ~6s of future time and resizes with the container.
+- Note coloring: pending (indigo), hit (green), miss (red). Keyboard lane highlights pressed keys.
+
+## How to Use
+1. Open the app (Vite dev server or deployed build).
+2. Choose a `.mid`/`.midi` file.
+3. Select your MIDI input device (first device is auto‑selected when available).
+4. Pick a mode: Learn or Play.
+5. Press Play. Use ⏮︎ to seek to start and adjust Tempo as needed.
+
+Notes:
+- Web MIDI is supported in Chromium‑based desktops. If unsupported or permission is denied, the app shows a notice.
+- Connect your keyboard before loading the page, or refresh after connecting.
 
 ## Current Status
-The application is described as a "prototype" in the UI, suggesting it's in early development. The minimal dependencies in package.json and the comment in SimpleSynth.ts about it being "not realistic piano — just clean tones to prove timing & scheduling" indicate that this is a functional proof of concept that could be expanded with more features and refinements.
+Prototype: functional and suitable for practicing simple pieces. The synth is intentionally simple (not a realistic piano). Feature areas to expand later include sustain pedal/CC handling, richer sound, velocity curves, score/part selection, and more advanced learning flows.
