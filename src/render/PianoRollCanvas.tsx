@@ -13,9 +13,10 @@ type Props = {
     windowMs?: number          // how much future time is visible (default 6000ms)
     pressed?: Set<number>
     noteStates?: NoteStateMap
+    showNoteNames?: boolean    // overlay note names on falling bars
 }
 
-export default function PianoRollCanvas({ song, transport, windowMs = 6000, pressed, noteStates }: Props) {
+export default function PianoRollCanvas({ song, transport, windowMs = 6000, pressed, noteStates, showNoteNames = true }: Props) {
     const canvasRef = useRef<HTMLCanvasElement | null>(null)
     const [size, setSize] = useState<{ w: number; h: number }>({ w: 800, h: 500 })
     const keyboardLane = 80
@@ -113,7 +114,31 @@ export default function PianoRollCanvas({ song, transport, windowMs = 6000, pres
                             : state === 2 ? 'rgba(239, 68, 68, 0.95)'  // red: miss
                                 :              'rgba(99, 102, 241, 0.9)'   // indigo: pending
 
-                    fillRect(ctx, x + 1, y + 1, Math.max(2, pxPerPitch - 2), h - 2, color)
+                    const rectX = x + 1
+                    const rectY = y + 1
+                    const rectW = Math.max(2, pxPerPitch - 2)
+                    const rectH = h - 2
+                    fillRect(ctx, rectX, rectY, rectW, rectH, color)
+
+                    // Note name label (overlay, always visible)
+                    if (showNoteNames) {
+                        const label = midiToNoteName(n.pitch)
+                        // Draw label on top of the bar regardless of its size (no clipping)
+                        const fontPx = Math.max(12 * PR, Math.min(16 * PR, Math.floor(13 * PR)))
+                        ctx.save()
+                        ctx.font = `${fontPx}px system-ui, -apple-system, Segoe UI, Roboto, sans-serif`
+                        ctx.textAlign = 'center'
+                        ctx.textBaseline = 'middle'
+                        const cx = rectX + rectW / 2
+                        const cy = rectY + rectH / 2
+                        // Strong outline for readability over any color
+                        ctx.lineWidth = Math.max(1, Math.floor(2 * PR))
+                        ctx.strokeStyle = 'rgba(0,0,0,0.9)'
+                        ctx.strokeText(label, cx, cy)
+                        ctx.fillStyle = 'rgba(255,255,255,0.98)'
+                        ctx.fillText(label, cx, cy)
+                        ctx.restore()
+                    }
                 }
             }
 
@@ -209,3 +234,11 @@ function drawKeyboard(
     }
 }
 
+
+
+function midiToNoteName(pitch: number): string {
+    const names = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
+    const name = names[(pitch % 12 + 12) % 12]
+    const octave = Math.floor(pitch / 12) - 1
+    return `${name}${octave}`
+}
