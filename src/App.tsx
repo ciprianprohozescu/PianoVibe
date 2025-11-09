@@ -323,16 +323,16 @@ export default function App() {
                         </label>
                     </div>
                 </section>
-
-                {song && (
-                    <section style={styles.section}>
-                        <PianoRollCanvas song={song} transport={transport} windowMs={6000} pressed={pressed} noteStates={noteStates} />
-                        <div style={{ opacity: 0.7, fontSize: 12, marginTop: 6 }}>
-                            Showing next 6 seconds. Notes fall into the keyboard lane. Physical MIDI keys highlight below.
-                        </div>
-                    </section>
-                )}
             </div>
+
+            {song && (
+                <section style={styles.fullBleedSection}>
+                    <PianoRollCanvas song={song} transport={transport} windowMs={9000} pressed={pressed} noteStates={noteStates} />
+                    <div style={{ opacity: 0.7, fontSize: 12, marginTop: 6, paddingInline: 16 }}>
+                        Showing next 9 seconds. Notes fall into the keyboard lane. Physical MIDI keys highlight below.
+                    </div>
+                </section>
+            )}
         </div>
     )
 }
@@ -340,15 +340,17 @@ export default function App() {
 const styles: Record<string, React.CSSProperties> = {
     page: {
         minHeight: '100dvh',
-        display: 'grid',
-        placeItems: 'center',
+        display: 'block',
         background: 'linear-gradient(180deg, #0f172a, #0b1023)',
         color: '#e5e7eb',
         fontFamily: 'system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, sans-serif',
         padding: 16,
+        overflowX: 'hidden',
     },
     card: {
-        width: 'min(720px, 100%)',
+        width: '100%',
+        maxWidth: 900,
+        margin: '0 auto',
         background: 'rgba(255,255,255,0.06)',
         border: '1px solid rgba(255,255,255,0.12)',
         borderRadius: 16,
@@ -377,4 +379,13 @@ const styles: Record<string, React.CSSProperties> = {
     },
     hint: { marginTop: 6, opacity: 0.75, fontSize: 12 },
     footer: { marginTop: 22, opacity: 0.6 },
+    fullBleedSection: {
+        width: '100vw',
+        position: 'relative',
+        left: 0,
+        right: '50%',
+        marginLeft: 'calc(50% - 50vw)',
+        marginRight: 'calc(50% - 50vw)',
+        marginTop: 16,
+    },
 }

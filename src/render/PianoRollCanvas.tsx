@@ -20,20 +20,9 @@ export default function PianoRollCanvas({ song, transport, windowMs = 6000, pres
     const [size, setSize] = useState<{ w: number; h: number }>({ w: 800, h: 500 })
     const keyboardLane = 80
 
-    // Compute pitch range (pad to full 88-key by default)
-    const { minPitch, maxPitch } = (() => {
-        let min = 127, max = 0
-        for (const tr of song.tracks) {
-            for (const ev of tr.events) {
-                if (ev.pitch < min) min = ev.pitch
-                if (ev.pitch > max) max = ev.pitch
-            }
-        }
-        // Clamp to a friendly range (A0=21 .. C8=108)
-        min = Math.min(Math.max(21, min - 2), 108)
-        max = Math.max(Math.min(108, max + 2), 21)
-        return { minPitch: min, maxPitch: max }
-    })()
+    // Fixed full 88-key range (A0=21 .. C8=108)
+    const minPitch = 21
+    const maxPitch = 108
 
     // Resize to container
     useEffect(() => {
@@ -144,7 +133,7 @@ export default function PianoRollCanvas({ song, transport, windowMs = 6000, pres
     }, [song, size.w, size.h, minPitch, maxPitch, keyboardLane, windowMs, transport, noteStates, pressed])
 
     return (
-        <div style={{ width: '100%', height: '60vh', minHeight: 260, borderRadius: 12, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.15)' }}>
+        <div style={{ width: '100%', height: '80vh', minHeight: 300, borderRadius: 12, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.15)' }}>
             <canvas ref={canvasRef} />
         </div>
     )
