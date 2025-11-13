@@ -7,9 +7,11 @@ import { SimpleSynth } from './audio/SimpleSynth'
 import { SongScheduler } from './audio/SongScheduler'
 import { Grader, type NoteStateMap } from './grade/Grader'
 import { LearnGate } from './learn/LearnGate'
+import { MicrophoneInput } from './audio/MicrophoneInput'
 
 
 type Mode = 'learn' | 'play'
+ type InputSource = 'midi' | 'mic'
 
 type MidiInputInfo = {
     id: string
@@ -33,6 +35,10 @@ export default function App() {
     const [midiAccess, setMidiAccess] = useState<WebMidi.MIDIAccess | null>(null)
     const [inputs, setInputs] = useState<MidiInputInfo[]>([])
     const [selectedInputId, setSelectedInputId] = useState<string>('')
+
+    const [inputSource, setInputSource] = useState<InputSource>('midi')
+    const micRef = React.useRef<MicrophoneInput | null>(null)
+    const [micError, setMicError] = useState<string | null>(null)
 
     const [mode, setMode] = useState<Mode>('learn')
     const [file, setFile] = useState<File | null>(null)
@@ -190,8 +196,53 @@ export default function App() {
 
     useEffect(() => {
         if (!midiAccess) return
+        if (inputSource !== 'midi') {
+            // unbind MIDI listener when not using MIDI
+            if (currentInputRef.current) {
+                currentInputRef.current.onmidimessage = null as any
+                currentInputRef.current = null
+            }
+            return
+        }
         bindSelectedMidiInput(midiAccess, selectedInputId)
-    }, [midiAccess, selectedInputId])
+    }, [midiAccess, selectedInputId, inputSource, bindSelectedMidiInput])
+
+    // Manage microphone input when selected
+    useEffect(() => {
+        if (inputSource !== 'mic') {
+            // stop mic if running
+            micRef.current?.stop()
+            return
+        }
+        setMicError(null)
+        if (!micRef.current) micRef.current = new MicrophoneInput(transport.audioContext)
+        const mic = micRef.current
+        mic.setCallbacks(
+            (pitch) => {
+                setPressed(prev => {
+                    if (prev.has(pitch)) return prev
+                    const next = new Set(prev)
+                    next.add(pitch)
+                    return next
+                })
+                const timeMs = transport.currentMs()
+                grader.addPress(pitch, timeMs)
+            },
+            (pitch) => {
+                setPressed(prev => {
+                    if (!prev.has(pitch)) return prev
+                    const next = new Set(prev)
+                    next.delete(pitch)
+                    return next
+                })
+            }
+        )
+        mic.start().catch(err => {
+            console.error('Microphone start error', err)
+            setMicError(err?.message ?? String(err))
+        })
+        return () => { mic.stop() }
+    }, [inputSource, grader, transport])
 
     useEffect(() => {
         if (!song) return
@@ -266,7 +317,43 @@ export default function App() {
                     </div>
                 </section>
 
+                {/* Input source */}
+                <section style={styles.section}>
+                    <label style={styles.label}>Input source</label>
+                    <div style={styles.row}>
+                        <label style={styles.radio}>
+                            <input
+                                type="radio"
+                                name="inputSource"
+                                value="midi"
+                                checked={inputSource === 'midi'}
+                                onChange={() => setInputSource('midi')}
+                            />
+                            <span>MIDI device</span>
+                        </label>
+                        <label style={styles.radio}>
+                            <input
+                                type="radio"
+                                name="inputSource"
+                                value="mic"
+                                checked={inputSource === 'mic'}
+                                onChange={() => setInputSource('mic')}
+                            />
+                            <span>Microphone (pitch detection)</span>
+                        </label>
+                    </div>
+                    {inputSource === 'mic' && (
+                        <div style={styles.hint}>
+                            We'll listen to your microphone and detect pitch. Use headphones to avoid feedback.
+                        </div>
+                    )}
+                    {micError && (
+                        <div style={styles.notice}>Microphone error: {micError}</div>
+                    )}
+                </section>
+
                 {/* MIDI input device */}
+                {inputSource === 'midi' && (
                 <section style={styles.section}>
                     <label style={styles.label}>MIDI input device</label>
                     <select
@@ -286,6 +373,7 @@ export default function App() {
                         Tip: Connect your keyboard via USB or a MIDI→USB interface, then refresh this page.
                     </div>
                 </section>
+                )}
 
                 <section style={styles.section}>
                     <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>

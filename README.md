@@ -7,7 +7,9 @@ PianoVibe (labeled "Piano Learner" in the UI) is a web app to practice piano wit
 
 ### Core Features
 1. **MIDI File Upload**: Load standard MIDI files (`.mid`/`.midi`) for practice and playback.
-2. **MIDI Device Integration**: Detects and connects to MIDI input devices via the Web MIDI API. Hot‑plugging is handled and the first device is auto‑selected when available.
+2. **MIDI/Microphone Input**:
+   - **MIDI Device Integration**: Detects and connects to MIDI input devices via the Web MIDI API. Hot‑plugging is handled and the first device is auto‑selected when available.
+   - **Microphone Mode**: Uses your device microphone (via Web Audio + getUserMedia) to detect pitch and convert it into note on/off events so you can practice without a MIDI keyboard.
 3. **Modes**:
    - **Learn Mode**: Auto‑pauses at each upcoming note/chord and waits until you play the correct notes, then auto‑resumes to the next group.
    - **Play Mode**: Free‑running playback, unaffected by user input.
