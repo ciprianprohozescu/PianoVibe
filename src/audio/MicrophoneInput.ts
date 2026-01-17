@@ -38,11 +38,21 @@ export class MicrophoneInput {
 
     async start(): Promise<void> {
         if (this.mediaStream) return
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: {
-            echoCancellation: false,
-            noiseSuppression: false,
-            autoGainControl: false,
-        }})
+
+        // iOS/Safari often keep AudioContext suspended until a user gesture; try to resume.
+        try { await this.ctx.resume() } catch {}
+
+        // Use a robust getUserMedia wrapper with legacy fallbacks for iOS/webviews
+        const constraints: MediaStreamConstraints = {
+            audio: {
+                echoCancellation: false,
+                noiseSuppression: false,
+                autoGainControl: false,
+            } as any,
+            video: false,
+        }
+
+        const stream = await this.getUserMediaCompat(constraints)
         this.mediaStream = stream
         this.source = this.ctx.createMediaStreamSource(stream)
         const analyser = this.ctx.createAnalyser()
@@ -52,6 +62,38 @@ export class MicrophoneInput {
         this.analyser = analyser
         this.buffer = new Float32Array(analyser.fftSize)
         this.loop()
+    }
+
+    private getUserMediaCompat(constraints: MediaStreamConstraints): Promise<MediaStream> {
+        const anyNav = navigator as any
+        const hasStd = typeof navigator.mediaDevices !== 'undefined' &&
+            typeof navigator.mediaDevices.getUserMedia === 'function'
+        if (hasStd) {
+            return navigator.mediaDevices.getUserMedia(constraints)
+        }
+
+        // Legacy prefixes (older iOS Safari / some webviews)
+        const legacyGUM = (anyNav.getUserMedia || anyNav.webkitGetUserMedia || anyNav.mozGetUserMedia) as
+            | undefined
+            | ((constraints: MediaStreamConstraints, success: (s: MediaStream) => void, fail: (e: any) => void) => void)
+
+        if (legacyGUM) {
+            return new Promise<MediaStream>((resolve, reject) => {
+                try {
+                    legacyGUM.call(navigator, constraints, resolve, reject)
+                } catch (e) {
+                    reject(e)
+                }
+            })
+        }
+
+        // Provide a helpful error explaining likely causes on iOS
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && (navigator as any).maxTouchPoints > 1)
+        const isHTTPS = location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1'
+        let hint = 'Microphone APIs are not available in this browser.'
+        if (isIOS && !isHTTPS) hint += ' On iOS, microphone access requires HTTPS (or localhost).'
+        if (isIOS) hint += ' If opened inside an in-app browser (e.g., from social apps), open this page in Safari.'
+        throw new Error(hint)
     }
 
     stop() {
